@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -259,7 +260,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final List<DDSpan> trace;
-        lock.lockInterruptibly();
+        try {
+          lock.lockInterruptibly();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
         try {
           if (!isPartial) {
             rootSpanWritten = true;
