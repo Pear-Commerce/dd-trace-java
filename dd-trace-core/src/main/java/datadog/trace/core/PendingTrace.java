@@ -172,6 +172,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }
 
+  private ReentrantLock lock = new ReentrantLock();
+
   @Override
   public DDSpan getRootSpan() {
     return rootSpan;
@@ -257,7 +259,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final List<DDSpan> trace;
-        synchronized (this) {
+        lock.lockInterruptibly();
+        try {
           if (!isPartial) {
             rootSpanWritten = true;
           }
@@ -278,6 +281,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           } else {
             trace = EMPTY;
           }
+        } finally {
+          lock.unlock();
         }
         if (!trace.isEmpty()) {
           COMPLETED_SPAN_COUNT.addAndGet(this, -trace.size());
